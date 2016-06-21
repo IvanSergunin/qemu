@@ -267,9 +267,9 @@ ETEXI
 
 	{
 	.name       = "video_capture",
-	.args_type  = "filename:F",
-	.params     = "filename",
-	.help       = "capture video from screen into 'filename'",
+	.args_type  = "filename:F fps:i?",
+	.params     = "filename fps",
+	.help       = "capture video from screen into 'filename' with given fps (if fps not set, it will be 30)",
 	.mhandler.cmd = hmp_video_capture,
 	},
 

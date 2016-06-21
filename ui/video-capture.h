@@ -13,4 +13,4 @@
 
 #endif /* video_capture_h */
 
-void video_encode_example(const char *filename);
+void video_encode_example(const char *filename, int fps);

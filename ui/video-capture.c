@@ -28,9 +28,9 @@
 
 AVFrame* image_decode_example(const char *filename)
 {
-    printf("Decoding image.\n");
+//    printf("Decoding image.\n");
     
-    printf("Try to open file.\n");
+//    printf("Try to open file.\n");
     // Open input file.
     AVFormatContext *iFormatContext = avformat_alloc_context();
     int err = avformat_open_input(&iFormatContext, filename, NULL, NULL);
@@ -38,16 +38,16 @@ AVFrame* image_decode_example(const char *filename)
         printf("Error in opening input file: (%s), error code: (%d)\n", filename, err);
         return NULL;
     }
-    printf("File opened.\n");
+//    printf("File opened.\n");
     
-    printf("Try to find stream information.\n");
+//    printf("Try to find stream information.\n");
     // Finding stream information.
     if (avformat_find_stream_info(iFormatContext, NULL)<0) {
         printf("Unable to find stream info.\n");
         avformat_close_input(&iFormatContext); // Release AVFormatContext memory.
         return NULL;
     }
-    printf("Stream information finded.\n");
+//    printf("Stream information finded.\n");
     
     // Finding video stream from number of streams.
     int videoStreamIndex = -1;
@@ -63,7 +63,7 @@ AVFrame* image_decode_example(const char *filename)
         avformat_close_input(&iFormatContext);
         return NULL;
     }
-    printf("Video stream of image finded.\n");
+//    printf("Video stream of image finded.\n");
     
     // Finding decoder for video stream of image.
     AVCodecContext *pCodecCtx = iFormatContext->streams[videoStreamIndex]->codec;
@@ -78,7 +78,7 @@ AVFrame* image_decode_example(const char *filename)
         avformat_close_input(&iFormatContext);
         return NULL;
     }
-    printf("Decoder finded.\n");
+//    printf("Decoder finded.\n");
     
     // Reading video frame.
     AVPacket encodedPacket;
@@ -94,7 +94,7 @@ AVFrame* image_decode_example(const char *filename)
         av_free(iFormatContext);
         return NULL;
     }
-    printf("Frame successful read.\n");
+//    printf("Frame successful read.\n");
     
     // Decoding the encoded video frame.
     AVFrame *decodedFrame = av_frame_alloc();
@@ -102,10 +102,10 @@ AVFrame* image_decode_example(const char *filename)
     int frameFinished = avcodec_receive_frame(pCodecCtx, decodedFrame);
     
     if (frameFinished == 0) {
-        printf("AVFrame decoded. Frame information - width: (%d) Height: (%d).\n", decodedFrame->width, decodedFrame->height);
+//        printf("AVFrame decoded. Frame information - width: (%d) Height: (%d).\n", decodedFrame->width, decodedFrame->height);
         
         // Convert decoded Frame to AV_PIX_FMT_YUV420P
-        printf("Prepare to scale.\n");
+//        printf("Prepare to scale.\n");
         
         struct SwsContext *img_convert_ctx;
         img_convert_ctx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt,
@@ -123,17 +123,17 @@ AVFrame* image_decode_example(const char *filename)
         //        av_image_fill_arrays(convertedFrame->data, convertedFrame->linesize, convertedFrame_buffer, AV_PIX_FMT_YUV420P, pCodecCtx->width, pCodecCtx->height, 32);
         av_image_alloc(convertedFrame->data, convertedFrame->linesize, pCodecCtx->width, pCodecCtx->height, AV_PIX_FMT_YUV420P, 32);
         
-        printf("Scaling.\n");
+//        printf("Scaling.\n");
         sws_scale(img_convert_ctx, decodedFrame->data, decodedFrame->linesize, 0, pCodecCtx->height, convertedFrame->data, convertedFrame->linesize);
         
-        printf("AVFrame converted. Frame information - width: (%d) Height: (%d).\n", convertedFrame->width, convertedFrame->height);
+//        printf("AVFrame converted. Frame information - width: (%d) Height: (%d).\n", convertedFrame->width, convertedFrame->height);
         
         sws_freeContext(img_convert_ctx);
         
         return convertedFrame;
     }
     else {
-        printf("Unable to decode AVFrame.\n");
+//        printf("Unable to decode AVFrame.\n");
         return NULL;
     }
 }
@@ -141,15 +141,8 @@ AVFrame* image_decode_example(const char *filename)
 /*
  * Video encoding example
  */
-void video_encode_example(const char *filename)
+void video_encode_example(const char *filename, int fps)
 {
-    
-    char cwd[1024];
-    if (getcwd(cwd, sizeof(cwd)) != NULL)
-        fprintf(stdout, "Current working dir: %s\n", cwd);
-    else
-        perror("getcwd() error");
-    
     avcodec_register_all();
     av_register_all();
     
@@ -183,7 +176,7 @@ void video_encode_example(const char *filename)
     c->width = picture->width;
     c->height = picture->height;
     /* frames per second */
-    c->time_base= (AVRational){1,30};
+    c->time_base= (AVRational){1,fps};
     c->gop_size = 600; /* emit one intra frame every ten frames */
     c->max_b_frames=1;
     c->pix_fmt = AV_PIX_FMT_YUV420P;
@@ -209,22 +202,22 @@ void video_encode_example(const char *filename)
         fflush(stdout);
         
         qmp_screendump("image228.ppm", NULL);
-        printf("Getting decoded image!\n");
+//        printf("Getting decoded image!\n");
         picture = image_decode_example("image228.ppm");
-        printf("Got decoded image: (%p)\n", picture);
+//        printf("Got decoded image: (%p)\n", picture);
         
         
-        printf("Encoding frame!\n");
+//        printf("Encoding frame!\n");
         /* encode the image */
         ret = avcodec_encode_video2(c, &pkt, picture, &got_output);
         if (ret < 0) {
             fprintf(stderr, "error encoding frame\n");
             exit(1);
         }
-        printf("Success!\n");
+//        printf("Success!\n");
         
         if (got_output) {
-            printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
+//            printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
             fwrite(pkt.data, 1, pkt.size, f);
             av_packet_unref(&pkt);
         }
@@ -240,10 +233,10 @@ void video_encode_example(const char *filename)
             fprintf(stderr, "error encoding frame\n");
             exit(1);
         }
-        printf("Success!\n");
+//        printf("Success!\n");
         
         if (got_output) {
-            printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
+//            printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
             fwrite(pkt.data, 1, pkt.size, f);
             av_packet_unref(&pkt);
         }
@@ -257,5 +250,5 @@ void video_encode_example(const char *filename)
     av_free(c);
     av_freep(&picture->data[0]);
     av_frame_free(&picture);
-    printf("\n");
+    printf("Video captured!\n");
 }
