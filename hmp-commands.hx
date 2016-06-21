@@ -266,17 +266,31 @@ Save screen into PPM image @var{filename}.
 ETEXI
 
 	{
-	.name       = "video_capture",
+	.name       = "video_capture_start",
 	.args_type  = "filename:F fps:i?",
 	.params     = "filename fps",
 	.help       = "capture video from screen into 'filename' with given fps (if fps not set, it will be 30)",
-	.mhandler.cmd = hmp_video_capture,
+	.mhandler.cmd = hmp_video_capture_start,
 	},
 
 STEXI
-@item video_capture @var{filename}
+@item video_capture_start @var{filename} @var{fps}
 @findex video_capture
-capture video from screen @var{filename}.
+Start capture video from screen to file @var{filename} with specific fps @var{fps}.
+ETEXI
+
+	{
+	.name       = "video_capture_stop",
+	.args_type  = "",
+	.params     = "",
+	.help       = "Stop capture video from screen",
+	.mhandler.cmd = hmp_video_capture_stop,
+	},
+
+STEXI
+@item video_capture_stop
+@findex video_capture_stop
+Stop capture video.
 ETEXI
 
     {

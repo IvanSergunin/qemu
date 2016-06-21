@@ -346,10 +346,15 @@ void qmp_screendump(const char *filename, Error **errp)
     ppm_save(filename, surface, errp);
 }
 
-void qmp_video_capture(const char *filename, int fps, Error **errp)
+void qmp_video_capture_start(const char *filename, int fps, Error **errp)
 {
-    printf("qmp_video_capture called! Filename:%s\n", filename);
-    video_encode_example(filename, fps);
+    printf("qmp_video_capture_start called! Filename:%s\n", filename);
+    capture_video(filename, fps);
+}
+
+void qmp_video_capture_stop(Error **errp)
+{
+    printf("qmp_video_capture_stop called!\n");
 }
 
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)

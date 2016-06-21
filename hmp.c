@@ -1838,14 +1838,22 @@ void hmp_screendump(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
-void hmp_video_capture(Monitor *mon, const QDict *qdict)
+void hmp_video_capture_start(Monitor *mon, const QDict *qdict)
 {
     const char *filename = qdict_get_str(qdict, "filename");
     int fps = qdict_get_try_int(qdict, "fps", 30);
     printf("FPS given: %d\n", fps);
     Error *err = NULL;
     
-    qmp_video_capture(filename, fps, &err);
+    qmp_video_capture_start(filename, fps, &err);
+    hmp_handle_error(mon, &err);
+}
+
+void hmp_video_capture_stop(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    
+    qmp_video_capture_stop(&err);
     hmp_handle_error(mon, &err);
 }
 

@@ -141,7 +141,7 @@ AVFrame* image_decode_example(const char *filename)
 /*
  * Video encoding example
  */
-void video_encode_example(const char *filename, int fps)
+void capture_video(const char *filename, int fps)
 {
     avcodec_register_all();
     av_register_all();
