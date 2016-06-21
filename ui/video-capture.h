@@ -9,8 +9,7 @@
 #ifndef video_capture_h
 #define video_capture_h
 
-#include <stdio.h>
-
 #endif /* video_capture_h */
 
-void capture_video(const char *filename, int fps);
+void start_capture_video(const char *filename, int fps);
+void stop_capture_video();

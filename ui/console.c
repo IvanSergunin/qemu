@@ -348,13 +348,14 @@ void qmp_screendump(const char *filename, Error **errp)
 
 void qmp_video_capture_start(const char *filename, int fps, Error **errp)
 {
-    printf("qmp_video_capture_start called! Filename:%s\n", filename);
-    capture_video(filename, fps);
+    printf("Capture video from screen into file with name:%s\n", filename);
+    start_capture_video(filename, fps);
 }
 
 void qmp_video_capture_stop(Error **errp)
 {
-    printf("qmp_video_capture_stop called!\n");
+    printf("Video from screen capturing stopped.\n");
+    stop_capture_video();
 }
 
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)

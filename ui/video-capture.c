@@ -7,6 +7,11 @@
 //
 
 #include "video-capture.h"
+#include <stdio.h>
+#include <stdbool.h>
+
+#include "qemu/osdep.h"
+#include "qemu/timer.h"
 
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -22,15 +27,24 @@
 #define AUDIO_INBUF_SIZE 20480
 #define AUDIO_REFILL_THRESH 4096
 
-/*
- * Image decoding example
- */
+typedef struct {
+    AVCodecContext *codecContext; // Codec context for encoding video.
+    AVPacket packet;              // Packet for encoded frame.
+    FILE *outputFile;             // Result video file.
+    int fps;                      // FPS for result video.
+    QEMUTimer *captureTimer;      // Timer which fires video capture callback according to FPS.
+} VideoCaptureContext;
+
+static bool shouldCaptureVideo = false;
+static VideoCaptureContext *currentVideoCaptureContext = NULL;
+
+AVFrame* image_decode_example(const char *filename);
+void start_capture_video(const char *filename, int fps);
+void stop_capture_video();
+void video_capture_callback(void *opaque);
 
 AVFrame* image_decode_example(const char *filename)
 {
-//    printf("Decoding image.\n");
-    
-//    printf("Try to open file.\n");
     // Open input file.
     AVFormatContext *iFormatContext = avformat_alloc_context();
     int err = avformat_open_input(&iFormatContext, filename, NULL, NULL);
@@ -38,16 +52,13 @@ AVFrame* image_decode_example(const char *filename)
         printf("Error in opening input file: (%s), error code: (%d)\n", filename, err);
         return NULL;
     }
-//    printf("File opened.\n");
     
-//    printf("Try to find stream information.\n");
     // Finding stream information.
     if (avformat_find_stream_info(iFormatContext, NULL)<0) {
         printf("Unable to find stream info.\n");
         avformat_close_input(&iFormatContext); // Release AVFormatContext memory.
         return NULL;
     }
-//    printf("Stream information finded.\n");
     
     // Finding video stream from number of streams.
     int videoStreamIndex = -1;
@@ -63,7 +74,6 @@ AVFrame* image_decode_example(const char *filename)
         avformat_close_input(&iFormatContext);
         return NULL;
     }
-//    printf("Video stream of image finded.\n");
     
     // Finding decoder for video stream of image.
     AVCodecContext *pCodecCtx = iFormatContext->streams[videoStreamIndex]->codec;
@@ -78,7 +88,6 @@ AVFrame* image_decode_example(const char *filename)
         avformat_close_input(&iFormatContext);
         return NULL;
     }
-//    printf("Decoder finded.\n");
     
     // Reading video frame.
     AVPacket encodedPacket;
@@ -94,7 +103,6 @@ AVFrame* image_decode_example(const char *filename)
         av_free(iFormatContext);
         return NULL;
     }
-//    printf("Frame successful read.\n");
     
     // Decoding the encoded video frame.
     AVFrame *decodedFrame = av_frame_alloc();
@@ -102,11 +110,8 @@ AVFrame* image_decode_example(const char *filename)
     int frameFinished = avcodec_receive_frame(pCodecCtx, decodedFrame);
     
     if (frameFinished == 0) {
-//        printf("AVFrame decoded. Frame information - width: (%d) Height: (%d).\n", decodedFrame->width, decodedFrame->height);
         
         // Convert decoded Frame to AV_PIX_FMT_YUV420P
-//        printf("Prepare to scale.\n");
-        
         struct SwsContext *img_convert_ctx;
         img_convert_ctx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt,
                                          pCodecCtx->width, pCodecCtx->height, AV_PIX_FMT_YUV420P, SWS_BICUBIC,
@@ -120,28 +125,21 @@ AVFrame* image_decode_example(const char *filename)
         int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, pCodecCtx->width, pCodecCtx->height, 32);
         uint8_t* convertedFrame_buffer = (uint8_t *)av_malloc(num_bytes*sizeof(uint8_t));
         
-        //        av_image_fill_arrays(convertedFrame->data, convertedFrame->linesize, convertedFrame_buffer, AV_PIX_FMT_YUV420P, pCodecCtx->width, pCodecCtx->height, 32);
+        // av_image_fill_arrays(convertedFrame->data, convertedFrame->linesize, convertedFrame_buffer, AV_PIX_FMT_YUV420P, pCodecCtx->width, pCodecCtx->height, 32);
         av_image_alloc(convertedFrame->data, convertedFrame->linesize, pCodecCtx->width, pCodecCtx->height, AV_PIX_FMT_YUV420P, 32);
         
-//        printf("Scaling.\n");
         sws_scale(img_convert_ctx, decodedFrame->data, decodedFrame->linesize, 0, pCodecCtx->height, convertedFrame->data, convertedFrame->linesize);
-        
-//        printf("AVFrame converted. Frame information - width: (%d) Height: (%d).\n", convertedFrame->width, convertedFrame->height);
-        
         sws_freeContext(img_convert_ctx);
         
         return convertedFrame;
     }
     else {
-//        printf("Unable to decode AVFrame.\n");
+        printf("Unable to decode AVFrame.\n");
         return NULL;
     }
 }
 
-/*
- * Video encoding example
- */
-void capture_video(const char *filename, int fps)
+void start_capture_video(const char *filename, int fps)
 {
     avcodec_register_all();
     av_register_all();
@@ -152,11 +150,11 @@ void capture_video(const char *filename, int fps)
     FILE *f;
     AVFrame *picture;
     AVPacket pkt;
-    uint8_t endcode[] = { 0, 0, 1, 0xb7 };
+//    uint8_t endcode[] = { 0, 0, 1, 0xb7 };
     
     printf("Video encoding\n");
     
-    /* find the mpeg1 video encoder */
+    // Find the mpeg1 video encoder.
     codec = avcodec_find_encoder(AV_CODEC_ID_MPEG1VIDEO);
     if (!codec) {
         fprintf(stderr, "codec not found\n");
@@ -166,22 +164,19 @@ void capture_video(const char *filename, int fps)
     c = avcodec_alloc_context3(codec);
     picture = av_frame_alloc();
     
-    // Take first screenshot to determine demension.
+    // Take first screenshot to determine video resolution.
     qmp_screendump("image228.ppm", NULL);
     picture = image_decode_example("image228.ppm");
     
-    /* put sample parameters */
     c->bit_rate = 400000;
-    /* resolution must be a multiple of two */
     c->width = picture->width;
     c->height = picture->height;
-    /* frames per second */
     c->time_base= (AVRational){1,fps};
-    c->gop_size = 600; /* emit one intra frame every ten frames */
+    c->gop_size = 600; // Emit one intra frame every 600 frames.
     c->max_b_frames=1;
     c->pix_fmt = AV_PIX_FMT_YUV420P;
     
-    /* open it */
+    // Open codec.
     if (avcodec_open2(c, codec, NULL) < 0) {
         fprintf(stderr, "could not open codec\n");
         exit(1);
@@ -189,66 +184,94 @@ void capture_video(const char *filename, int fps)
     
     f = fopen(filename, "wb");
     if (!f) {
-        fprintf(stderr, "could not open %s\n", filename);
+        fprintf(stderr, "Could not open %s\n", filename);
         exit(1);
     }
     
-    /* encode 3 seconds of video */
-    for(i = 0; i < 75; i++) {
-        av_init_packet(&pkt);
-        pkt.data = NULL;    // packet data will be allocated by the encoder
-        pkt.size = 0;
-        
-        fflush(stdout);
-        
-        qmp_screendump("image228.ppm", NULL);
-//        printf("Getting decoded image!\n");
-        picture = image_decode_example("image228.ppm");
-//        printf("Got decoded image: (%p)\n", picture);
-        
-        
-//        printf("Encoding frame!\n");
-        /* encode the image */
-        ret = avcodec_encode_video2(c, &pkt, picture, &got_output);
-        if (ret < 0) {
-            fprintf(stderr, "error encoding frame\n");
-            exit(1);
-        }
-//        printf("Success!\n");
-        
-        if (got_output) {
-//            printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
-            fwrite(pkt.data, 1, pkt.size, f);
-            av_packet_unref(&pkt);
-        }
-        usleep(1000000/30);
+    // Start video capture.
+    shouldCaptureVideo = true;
+    
+    currentVideoCaptureContext = g_new0(VideoCaptureContext, 1);
+    currentVideoCaptureContext->codecContext = c;
+    currentVideoCaptureContext->packet = pkt;
+    currentVideoCaptureContext->outputFile = f;
+    currentVideoCaptureContext->fps = fps;
+    currentVideoCaptureContext->captureTimer = timer_new_ms(QEMU_CLOCK_REALTIME, video_capture_callback, currentVideoCaptureContext);
+    // Arm timer.
+    timer_mod(currentVideoCaptureContext->captureTimer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000 / fps);
+}
+
+void stop_capture_video()
+{
+    shouldCaptureVideo = false;
+}
+
+void video_capture_callback(void *opaque)
+{
+    VideoCaptureContext *videoCaptureContext = opaque;
+    
+    av_init_packet(&videoCaptureContext->packet);
+    videoCaptureContext->packet.data = NULL;
+    videoCaptureContext->packet.size = 0;
+    
+    fflush(stdout);
+    
+    qmp_screendump("image228.ppm", NULL);
+    AVFrame *picture = image_decode_example("image228.ppm");
+    
+    int encodeResult = -1;
+    int outputResult = 0;
+    
+    encodeResult = avcodec_encode_video2(videoCaptureContext->codecContext, &videoCaptureContext->packet, picture, &outputResult);
+    if (encodeResult < 0) {
+        fprintf(stderr, "Error when encoding frame\n");
+        exit(1);
     }
     
-    /* get the delayed frames */
-    for (got_output = 1; got_output; i++) {
-        fflush(stdout);
-        
-        ret = avcodec_encode_video2(c, &pkt, NULL, &got_output);
-        if (ret < 0) {
-            fprintf(stderr, "error encoding frame\n");
-            exit(1);
-        }
-//        printf("Success!\n");
-        
-        if (got_output) {
-//            printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
-            fwrite(pkt.data, 1, pkt.size, f);
-            av_packet_unref(&pkt);
-        }
+    if (outputResult) {
+        fwrite(videoCaptureContext->packet.data, 1, videoCaptureContext->packet.size, videoCaptureContext->outputFile);
+        av_packet_unref(&videoCaptureContext->packet);
     }
     
-    /* add sequence end code to have a real mpeg file */
-    fwrite(endcode, 1, sizeof(endcode), f);
-    fclose(f);
-    
-    avcodec_close(c);
-    av_free(c);
-    av_freep(&picture->data[0]);
-    av_frame_free(&picture);
-    printf("Video captured!\n");
+    if (!shouldCaptureVideo) {
+        timer_del(videoCaptureContext->captureTimer);
+        timer_free(videoCaptureContext->captureTimer);
+        
+        int got_output = 1;
+        
+        // Get the delayed frames.
+        while (got_output) {
+            fflush(stdout);
+            
+            int ret = -1;
+            
+            ret = avcodec_encode_video2(videoCaptureContext->codecContext, &videoCaptureContext->packet, NULL, &got_output);
+            if (ret < 0) {
+                fprintf(stderr, "Error when encoding frame\n");
+                exit(1);
+            }
+            
+            if (got_output) {
+                fwrite(videoCaptureContext->packet.data, 1, videoCaptureContext->packet.size, videoCaptureContext->outputFile);
+                av_packet_unref(&videoCaptureContext->packet);
+            }
+        }
+        
+        // Add sequence end code to have a real mpeg file.
+        uint8_t endcode[] = { 0, 0, 1, 0xb7 };
+        
+        fwrite(endcode, 1, sizeof(endcode), videoCaptureContext->outputFile);
+        fclose(videoCaptureContext->outputFile);
+        
+        avcodec_close(videoCaptureContext->codecContext);
+        av_free(videoCaptureContext->codecContext);
+        
+        currentVideoCaptureContext = NULL;
+        
+        printf("Video captured!\n");
+    }
+    else {
+        // Rearm timer.
+        timer_mod(currentVideoCaptureContext->captureTimer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000 / videoCaptureContext->fps);
+    }
 }
