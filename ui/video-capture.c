@@ -23,10 +23,6 @@
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
 
-#define INBUF_SIZE 4096
-#define AUDIO_INBUF_SIZE 20480
-#define AUDIO_REFILL_THRESH 4096
-
 typedef struct {
     AVCodecContext *codecContext; // Codec context for encoding video.
     AVPacket packet;              // Packet for encoded frame.
@@ -145,12 +141,10 @@ void start_capture_video(const char *filename, int fps)
     av_register_all();
     
     AVCodec *codec;
-    AVCodecContext *c= NULL;
-    int i, ret, got_output;
+    AVCodecContext *c = NULL;
     FILE *f;
     AVFrame *picture;
     AVPacket pkt;
-//    uint8_t endcode[] = { 0, 0, 1, 0xb7 };
     
     printf("Video encoding\n");
     
