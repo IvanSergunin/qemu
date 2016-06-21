@@ -265,6 +265,20 @@ STEXI
 Save screen into PPM image @var{filename}.
 ETEXI
 
+	{
+	.name       = "video_capture",
+	.args_type  = "filename:F",
+	.params     = "filename",
+	.help       = "capture video from screen into 'filename'",
+	.mhandler.cmd = hmp_video_capture,
+	},
+
+STEXI
+@item video_capture @var{filename}
+@findex video_capture
+capture video from screen @var{filename}.
+ETEXI
+
     {
         .name       = "logfile",
         .args_type  = "filename:F",

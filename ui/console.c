@@ -30,6 +30,7 @@
 #include "sysemu/char.h"
 #include "trace.h"
 #include "exec/memory.h"
+#include "ui/video-capture.h"
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
@@ -343,6 +344,12 @@ void qmp_screendump(const char *filename, Error **errp)
     graphic_hw_update(con);
     surface = qemu_console_surface(con);
     ppm_save(filename, surface, errp);
+}
+
+void qmp_video_capture(const char *filename, Error **errp)
+{
+    printf("qmp_video_capture called! Filename:%s\n", filename);
+    video_encode_example(filename);
 }
 
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)

@@ -1838,6 +1838,15 @@ void hmp_screendump(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
+void hmp_video_capture(Monitor *mon, const QDict *qdict)
+{
+    const char *filename = qdict_get_str(qdict, "filename");
+    Error *err = NULL;
+    
+    qmp_video_capture(filename, &err);
+    hmp_handle_error(mon, &err);
+}
+
 void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
 {
     const char *uri = qdict_get_str(qdict, "uri");
