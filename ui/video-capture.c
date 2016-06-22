@@ -127,6 +127,8 @@ AVFrame* image_decode_example(const char *filename)
         sws_scale(img_convert_ctx, decodedFrame->data, decodedFrame->linesize, 0, pCodecCtx->height, convertedFrame->data, convertedFrame->linesize);
         sws_freeContext(img_convert_ctx);
         
+        avformat_close_input(&iFormatContext);
+        
         return convertedFrame;
     }
     else {

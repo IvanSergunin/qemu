@@ -354,7 +354,7 @@ void qmp_video_capture_start(const char *filename, int fps, Error **errp)
 
 void qmp_video_capture_stop(Error **errp)
 {
-    printf("Video from screen capturing stopped.\n");
+    printf("Capturing video from screen stopped.\n");
     stop_capture_video();
 }
 
